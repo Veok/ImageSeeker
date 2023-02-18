@@ -1,0 +1,10 @@
+/* Fun thing: Radzen is not supporting full styling by css classes in free themes. So any additional styling
+fo example of buttons must be done as inline style */
+
+RadzenText, RadzenDropDown, span {
+    color: white;
+}
+
+.submit-button {
+    width: 100%;
+}

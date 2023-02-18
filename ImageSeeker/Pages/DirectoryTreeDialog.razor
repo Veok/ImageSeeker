@@ -1,0 +1,61 @@
+@page "/dialogcard"
+@using ImageSeeker.Data.DirectoryTreeDialog
+@inject DialogService DialogService
+@inject IDirectoryTreeDialogService DirectoryTreeDialogService;
+
+<div>
+    <RadzenStack Gap="4px" Orientation="Orientation.Vertical">
+        <RadzenCard>
+            <RadzenTree Data="@_entries" Expand="@LoadFiles" Change="@OnChangeTree" Style="width: 100%; height: 40vh; color:  white">
+                <RadzenTreeLevel Text="@GetTextForNode" Template="@_fileOrFolderTemplate"></RadzenTreeLevel>
+            </RadzenTree>
+        </RadzenCard>
+        <RadzenButton Text="Submit directory" Style="width: 100%;" Variant="Variant.Flat" ButtonStyle="ButtonStyle.Dark" Click="@ConfirmAndClose"/>
+    </RadzenStack>
+</div>
+
+@code {
+    private IEnumerable<string> _entries;
+    private string _selectedDirectoryPath = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        _entries = DirectoryTreeDialogService.GetMyDocuments();
+    }
+
+    private void OnChangeTree(TreeEventArgs args)
+    {
+        _selectedDirectoryPath = args.Value.ToString();
+    }
+
+    private void ConfirmAndClose()
+    {
+        DialogService.Close(_selectedDirectoryPath);
+    }
+
+    private void LoadFiles(TreeExpandEventArgs args)
+    {
+        var directory = args.Value as string;
+        var kids = Directory.EnumerateFileSystemEntries(directory!).ToList();
+
+        args.Children.Data = kids.Where(Directory.Exists);
+        args.Children.Text = GetTextForNode;
+        args.Children.HasChildren = (path) => Directory.Exists((string)path);
+        args.Children.Template = _fileOrFolderTemplate;
+    }
+
+    private string GetTextForNode(object data)
+    {
+        return Path.GetFileName((string)data);
+    }
+
+    private readonly RenderFragment<RadzenTreeItem> _fileOrFolderTemplate = (context) => builder =>
+    {
+        builder.OpenComponent<RadzenIcon>(0);
+        builder.AddAttribute(1, nameof(RadzenIcon.Icon), "folder");
+        builder.AddAttribute(2, nameof(RadzenIcon.IconStyle), IconStyle.Light);
+        builder.CloseComponent();
+        builder.AddContent(3, context.Text);
+    };
+}

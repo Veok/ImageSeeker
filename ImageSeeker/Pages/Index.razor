@@ -1,0 +1,106 @@
+﻿@page "/"
+@inject DialogService DialogService
+@inject IFileSearchService FileSearchService
+@inject IFileMoveService FileMoveService
+
+@using ImageSeeker.Data.File
+
+<RadzenCard>
+    <RadzenStack Gap="10px" Orientation="Orientation.Vertical">
+        <RadzenText TextStyle="TextStyle.Subtitle1" TagName="TagName.H3">Choose file types to search</RadzenText>
+        <RadzenDropDown Multiple="true"
+                        Chips="true"
+                        MaxSelectedLabels="20"
+                        AllowClear="true"
+                        FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
+                        Data=@_fileTypes @bind-Value=@_multipleValuesChip
+                        TextProperty="FileType"
+                        ValueProperty="Id"
+                        Change=@(args => OnChangeDisabled(args, "DropDown with multiple selection"))>
+            <Template>
+                <span>@context.FileType</span>
+            </Template>
+        </RadzenDropDown>
+        <RadzenCard>
+            <RadzenRow>
+                <RadzenColumn>
+                    <RadzenText TextStyle="TextStyle.H6" TextAlign="TextAlign.Start">@_searchDirectoryPath</RadzenText>
+                </RadzenColumn>
+                <RadzenColumn>
+                    <RadzenButton Style="width: 60%; float: right; color: white;" Variant="Variant.Flat" ButtonStyle="ButtonStyle.Dark" Text="Choose search directory" Click="@ShowSearchDirectoryDialogAsync"/>
+                </RadzenColumn>
+            </RadzenRow>
+        </RadzenCard>
+        <RadzenCard>
+            <RadzenRow>
+                <RadzenColumn>
+                    <RadzenText TextStyle="TextStyle.H6" TextAlign="TextAlign.Start">@_destinationDirectoryPath</RadzenText>
+                </RadzenColumn>
+                <RadzenColumn>
+                    <RadzenButton Style="width: 60%; float: right; color: white;" Text="Choose destination directory" Variant="Variant.Flat" ButtonStyle="ButtonStyle.Dark" Click="@ShowDestinationDirectoryDialogAsync"/>
+                </RadzenColumn>
+            </RadzenRow>
+        </RadzenCard>
+        <RadzenButton Text="Start" class="submit-button" Variant="Variant.Flat" ButtonStyle="ButtonStyle.Dark" Click="@SearchAndMoveAsync"/>
+        <RadzenProgressBar Value="156" Max="200" Style="margin-top: 2px;"/>
+        <RadzenRow Style="margin-top: 15px;">
+            <RadzenColumn>
+                <RadzenText TextStyle="TextStyle.H6" TextAlign="TextAlign.Start">Found: @_filesFoundText </RadzenText>
+            </RadzenColumn>
+            <RadzenColumn>
+                <RadzenText TextStyle="TextStyle.H6" TextAlign="TextAlign.Start">Copied: </RadzenText>
+            </RadzenColumn>
+        </RadzenRow>
+    </RadzenStack>
+</RadzenCard>
+
+
+@code{
+    private IEnumerable<int> _multipleValuesChip = new int[] { };
+    private readonly IList<FileTypeViewModel> _fileTypes = FileTypeData.Get();
+    private string _searchDirectoryPath = string.Empty;
+    private string _destinationDirectoryPath = string.Empty;
+    private string _filesFoundText = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+    }
+
+    private async Task SearchAndMoveAsync()
+    {
+        var selectedFileTypes = _multipleValuesChip.Select(x => _fileTypes[x].FileType).ToList();
+        var filesPaths = FileSearchService.SearchAndGetFilePaths(_searchDirectoryPath, selectedFileTypes).ToList();
+        
+        _filesFoundText = filesPaths.Count.ToString();
+
+        await FileMoveService.MoveFilesToNewDestination(_destinationDirectoryPath, filesPaths);
+    }
+    
+    private async Task ShowDestinationDirectoryDialogAsync()
+    {
+        var result = await OpenDirectoryDialogAndGetSelectedPathAsync("Choose destination directory");
+        _destinationDirectoryPath = result;
+    }
+
+    private async Task ShowSearchDirectoryDialogAsync()
+    {
+        var result = await OpenDirectoryDialogAndGetSelectedPathAsync("Choose search directory");
+        _searchDirectoryPath = result;
+    }
+
+    private async Task<string> OpenDirectoryDialogAndGetSelectedPathAsync(string title)
+    {
+        var result = await DialogService.OpenAsync<DirectoryTreeDialog>(title,
+            new Dictionary<string, object>(),
+            new DialogOptions());
+
+        return result;
+    }
+
+    void OnChangeDisabled(object value, string name)
+    {
+        var str = value is IEnumerable<int> ? string.Join(", ", (IEnumerable<int>)value) : value;
+    }
+
+}

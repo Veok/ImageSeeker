@@ -2,5 +2,5 @@ namespace ImageSeeker.Data.File;
 
 public interface IFileMoveService
 {
-    Task MoveFilesToNewDestination(string destinationPath, IEnumerable<string> filePaths);
+    IAsyncEnumerable<string> MoveFilesToNewDestinationAsync(string destinationPath, IEnumerable<string> filePaths);
 }

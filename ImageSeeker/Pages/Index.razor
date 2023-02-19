@@ -15,8 +15,7 @@
                         FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
                         Data=@_fileTypes @bind-Value=@_multipleValuesChip
                         TextProperty="FileType"
-                        ValueProperty="Id"
-                        Change=@(args => OnChangeDisabled(args, "DropDown with multiple selection"))>
+                        ValueProperty="Id">
             <Template>
                 <span>@context.FileType</span>
             </Template>
@@ -41,14 +40,14 @@
                 </RadzenColumn>
             </RadzenRow>
         </RadzenCard>
-        <RadzenButton Text="Start" class="submit-button" Variant="Variant.Flat" ButtonStyle="ButtonStyle.Dark" Click="@SearchAndMoveAsync"/>
-        <RadzenProgressBar Value="156" Max="200" Style="margin-top: 2px;"/>
+        <RadzenButton Text="Start" class="submit-button" Variant="Variant.Flat" ButtonStyle="ButtonStyle.Dark" Click="@SearchAndMoveAsync" Disabled="@(!CanProcess())" />
+        <RadzenProgressBar Value="@_progressPercentage" Style="margin-top: 2px;"/>
         <RadzenRow Style="margin-top: 15px;">
             <RadzenColumn>
                 <RadzenText TextStyle="TextStyle.H6" TextAlign="TextAlign.Start">Found: @_filesFoundText </RadzenText>
             </RadzenColumn>
             <RadzenColumn>
-                <RadzenText TextStyle="TextStyle.H6" TextAlign="TextAlign.Start">Copied: </RadzenText>
+                <RadzenText TextStyle="TextStyle.H6" TextAlign="TextAlign.Start">Copied: @_filesMovedText</RadzenText>
             </RadzenColumn>
         </RadzenRow>
     </RadzenStack>
@@ -56,11 +55,14 @@
 
 
 @code{
-    private IEnumerable<int> _multipleValuesChip = new int[] { };
     private readonly IList<FileTypeViewModel> _fileTypes = FileTypeData.Get();
+    private IEnumerable<int> _multipleValuesChip = new int[] { };
+    private IList<string> _progress = new List<string>();
     private string _searchDirectoryPath = string.Empty;
     private string _destinationDirectoryPath = string.Empty;
     private string _filesFoundText = string.Empty;
+    private string _filesMovedText = string.Empty;
+    private int _progressPercentage;
 
     protected override async Task OnInitializedAsync()
     {
@@ -69,14 +71,24 @@
 
     private async Task SearchAndMoveAsync()
     {
-        var selectedFileTypes = _multipleValuesChip.Select(x => _fileTypes[x].FileType).ToList();
-        var filesPaths = FileSearchService.SearchAndGetFilePaths(_searchDirectoryPath, selectedFileTypes).ToList();
-        
-        _filesFoundText = filesPaths.Count.ToString();
+        _progress = new List<string>();
 
-        await FileMoveService.MoveFilesToNewDestination(_destinationDirectoryPath, filesPaths);
+        var selectedFileTypes = _multipleValuesChip.Select(x => _fileTypes.First(y => y.Id == x).FileType).ToList();
+        var filesPaths = FileSearchService.SearchAndGetFilePaths(_searchDirectoryPath, selectedFileTypes).ToList();
+
+        var numberOfFilesFound = filesPaths.Count;
+        _filesFoundText = numberOfFilesFound.ToString();
+        StateHasChanged();
+
+        await foreach (var movedFile in FileMoveService.MoveFilesToNewDestinationAsync(_destinationDirectoryPath, filesPaths))
+        {
+            _progress.Add(movedFile);
+            _filesMovedText = _progress.Count().ToString();
+            _progressPercentage = (_progress.Count() * 100) / numberOfFilesFound;
+            StateHasChanged();
+        }
     }
-    
+
     private async Task ShowDestinationDirectoryDialogAsync()
     {
         var result = await OpenDirectoryDialogAndGetSelectedPathAsync("Choose destination directory");
@@ -98,9 +110,11 @@
         return result;
     }
 
-    void OnChangeDisabled(object value, string name)
+    private bool CanProcess()
     {
-        var str = value is IEnumerable<int> ? string.Join(", ", (IEnumerable<int>)value) : value;
+        return _destinationDirectoryPath != _searchDirectoryPath
+               && _destinationDirectoryPath != string.Empty
+               && _searchDirectoryPath != string.Empty
+               && _multipleValuesChip.ToList().Count > 0;
     }
-
 }

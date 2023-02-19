@@ -2,8 +2,13 @@ namespace ImageSeeker.Data.File;
 
 public class FileMoveService : IFileMoveService
 {
-    public Task MoveFilesToNewDestination(string destinationPath, IEnumerable<string> filePaths)
+    public async IAsyncEnumerable<string> MoveFilesToNewDestinationAsync(string destinationPath, IEnumerable<string> filePaths)
     {
-        throw new NotImplementedException();
+        foreach (var filePath in filePaths)
+        {
+            var fileName = filePath.Split(Path.DirectorySeparatorChar).Last();
+            await Task.Run(() => Directory.Move(filePath, Path.Combine(destinationPath, fileName)));
+            yield return filePath;
+        }
     }
 }

@@ -1,0 +1,40 @@
+# This workflow will build a .NET project
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-net
+
+name: .NET
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: 7.0.x
+    - name: Restore dependencies
+      run: dotnet restore
+    - name: Build
+      run: dotnet build --no-restore
+    - name: Test
+      run: dotnet test --no-build --verbosity normal
+    - name: build macOS
+      run: dotnet build -f:net7.0-maccatalyst -c:Release /p:CreatePackage=true
+    - name: Publish macOS package
+      uses: actions/upload-artifact@v3
+      with:
+        name: image-seeker.pkg
+        path: bin/Release/net7.0-maccatalyst/ImageSeeker-1.0.pkg
+        retention-days: 5
+    - name: Download macOS package
+      uses: actions/download-artifact@v3
+      with:
+        name: image-seeker.pkg

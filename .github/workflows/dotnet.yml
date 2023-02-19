@@ -20,6 +20,10 @@ jobs:
       uses: actions/setup-dotnet@v3
       with:
         dotnet-version: 7.0.x
+    - name: Install wasm
+      run: dotnet workload install wasm-tools
+    - name: Install tizm
+      run: dotnet workload install maui-tizen
     - name: Restore dependencies
       run: dotnet restore
     - name: Build
